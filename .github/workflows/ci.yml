@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+defaults:
+  run:
+    shell: bash
+env:
+  PUB_ENVIRONMENT: bot.github
+permissions: read-all
+
+jobs:
+  check:
+    name: Format, analyze, test, publish check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/checkout@v4
+      - name: Get packages
+        run: flutter pub get
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Test
+        run: flutter test
+      - name: Test the example
+        working-directory: example
+        run: flutter test
+      - name: Check that the package can be published
+        run: dart pub publish --dry-run
+
+  android:
+    name: Android build and Kotlin tests
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/checkout@v4
+      - name: Build the example
+        working-directory: example
+        run: flutter build apk --debug
+      - name: Kotlin unit tests
+        working-directory: example/android
+        run: ./gradlew :store_update:testDebugUnitTest
+
+  ios:
+    name: iOS build
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/checkout@v4
+      - name: Build the example
+        working-directory: example
+        run: flutter build ios --simulator --debug
+
+  pana:
+    name: pub.dev score (pana)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/checkout@v4
+      - name: Install the screenshot tools pana needs
+        run: sudo apt-get update && sudo apt-get install -y webp
+      - name: Install pana
+        run: dart pub global activate pana
+      - name: Score the package (fails on any lost point)
+        run: dart pub global run pana --exit-code-threshold 0 .
