@@ -160,11 +160,17 @@ class StoreUpdateController extends ChangeNotifier with WidgetsBindingObserver {
     SharedPreferences prefs,
     DateTime now,
   ) async {
+    if (_disposed) return;
     switch (decision) {
       case NoUpdate():
+        // While an accepted download is followed, its progress stream decides
+        // (Play may still report the update as merely available right after
+        // the user accepted it).
+        final followingDownload =
+            _phase == UpdatePhase.downloading && _progressSub != null;
         if (_phase == UpdatePhase.required ||
-            _phase == UpdatePhase.downloading ||
-            _phase == UpdatePhase.readyToInstall) {
+            _phase == UpdatePhase.readyToInstall ||
+            (_phase == UpdatePhase.downloading && !followingDownload)) {
           _stopListening();
           _set(UpdatePhase.idle);
         }
@@ -197,9 +203,10 @@ class StoreUpdateController extends ChangeNotifier with WidgetsBindingObserver {
   /// "Update" on an offer: starts the background download (Android) or shows
   /// the App Store page (iOS).
   Future<void> accept() async {
+    if (_disposed) return;
     if (_phase == UpdatePhase.offerStore) {
       _set(UpdatePhase.idle);
-      await openStore();
+      if (!await openStore()) await _forgetOffer();
       return;
     }
     if (_phase != UpdatePhase.offerFlexible) return;
@@ -211,6 +218,18 @@ class StoreUpdateController extends ChangeNotifier with WidgetsBindingObserver {
         _phase == UpdatePhase.downloading) {
       _stopListening();
       _set(UpdatePhase.idle);
+    }
+  }
+
+  /// The store page could not open: offer again on the next check instead of
+  /// waiting a day.
+  Future<void> _forgetOffer() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(kLastPrompt);
+      await prefs.remove(kLastCheck);
+    } catch (_) {
+      // Then it is offered again after the usual gap.
     }
   }
 
@@ -244,7 +263,7 @@ class StoreUpdateController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _runImmediate() async {
-    if (_immediateRunning) return;
+    if (_immediateRunning || _disposed) return;
     _immediateRunning = true;
     try {
       final result = await _safe(_platform.startImmediate);
@@ -275,6 +294,7 @@ class StoreUpdateController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _listen() {
+    if (_disposed) return;
     _progressSub ??= _platform.progress.listen(
       _onProgress,
       onError: (Object _) {

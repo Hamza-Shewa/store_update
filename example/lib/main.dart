@@ -17,6 +17,7 @@ class ExampleApp extends StatefulWidget {
 }
 
 class _ExampleAppState extends State<ExampleApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   Locale _locale = const Locale('en');
   DemoStore? _demo;
   late StoreUpdateController _updates = StoreUpdateController();
@@ -53,17 +54,19 @@ class _ExampleAppState extends State<ExampleApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: StoreUpdateGate(
-        // A new controller restarts the checks.
-        key: ObjectKey(_updates),
+      navigatorKey: _navigatorKey,
+      // Over every screen: the sheet, the download bar and the required page.
+      builder: (context, child) => StoreUpdateGate(
         controller: _updates,
+        navigatorKey: _navigatorKey,
         appName: 'Example',
-        child: _Home(
-          simulating: _demo?.scenario,
-          onSimulate: _simulate,
-          arabic: _locale.languageCode == 'ar',
-          onArabic: (ar) => setState(() => _locale = Locale(ar ? 'ar' : 'en')),
-        ),
+        child: child!,
+      ),
+      home: _Home(
+        simulating: _demo?.scenario,
+        onSimulate: _simulate,
+        arabic: _locale.languageCode == 'ar',
+        onArabic: (ar) => setState(() => _locale = Locale(ar ? 'ar' : 'en')),
       ),
     );
   }

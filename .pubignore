@@ -34,3 +34,4 @@ migrate_working_dir/
 
 # Not published: screenshot tooling and its fonts (the PNGs in screenshots/ are).
 screenshot_test/
+example/pubspec.lock

@@ -107,6 +107,28 @@ void main() {
     });
   });
 
+  test('Android download progress from the event channel', () async {
+    const events = EventChannel(MethodChannelStoreUpdate.progressChannelName);
+    messenger.setMockStreamHandler(
+      events,
+      MockStreamHandler.inline(
+        onListen: (arguments, sink) {
+          sink.success({'status': 'downloading', 'bytes': 5, 'total': 20});
+          sink.success({'status': 'downloaded', 'bytes': 20, 'total': 20});
+          sink.endOfStream();
+        },
+      ),
+    );
+    addTearDown(() => messenger.setMockStreamHandler(events, null));
+    final steps = await android().progress.toList();
+    expect(steps.map((p) => p.state), [
+      InstallState.downloading,
+      InstallState.downloaded,
+    ]);
+    expect(steps.first.fraction, 0.25);
+    expect(steps.last.bytes, 20);
+  });
+
   group('iOS', () {
     final package = PackageInfo(
       appName: 'Example',

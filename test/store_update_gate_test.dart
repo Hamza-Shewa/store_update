@@ -326,7 +326,8 @@ void main() {
     fake.progressEvents.add(const DownloadProgress(InstallState.canceled));
     await tester.pump();
     await controller.check();
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(controller.phase, UpdatePhase.required);
     expect(find.text('my required page'), findsOneWidget);
     expect(find.byType(RequiredUpdatePage), findsNothing);
   });

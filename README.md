@@ -40,28 +40,40 @@ dependencies:
   store_update: ^0.1.0
 ```
 
-There is no native setup. Android needs a minSdk of 24 and iOS needs 15.
+There is no native setup. Android needs a minSdk of 24 and iOS needs 15. The
+Android plugin uses the Android Gradle Plugin 9's built-in Kotlin, which is
+the setup of apps created with Flutter 3.41 or later. Older AGP 8 projects
+are untested.
 
 ## Use
 
-Create one controller for the app's lifetime. Put `StoreUpdateGate` around the
-screen users reach once the app is ready, for example after sign-in or
-onboarding. The gate starts the checks when it is first built, and checks
-again each time the app comes back to the foreground.
+Create one controller for the app's lifetime and put `StoreUpdateGate` in
+`MaterialApp.builder`, so the update UI shows over every screen. The gate starts
+checking once `enabled` is true, for example after sign-in or onboarding. It
+checks again each time the app comes back to the foreground.
 
 ```dart
 final updates = StoreUpdateController(
   appStoreCountry: 'us', // the App Store storefront to look in (iOS)
 );
+final navigatorKey = GlobalKey<NavigatorState>();
 
 MaterialApp(
-  home: StoreUpdateGate(
+  navigatorKey: navigatorKey,
+  builder: (context, child) => StoreUpdateGate(
     controller: updates,
+    navigatorKey: navigatorKey,
+    enabled: signedIn, // nothing is checked or shown while false
     appName: 'My App',
-    child: const HomeScreen(),
+    child: child!,
   ),
+  home: const HomeScreen(),
 );
 ```
+
+You can also wrap a single screen instead (`home: StoreUpdateGate(...)`). The
+required-update page still covers every screen, because it opens as a route
+on the root navigator. The download bar then shows only on that screen.
 
 ### When an update is offered or required
 

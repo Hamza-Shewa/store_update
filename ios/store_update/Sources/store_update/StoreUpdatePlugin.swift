@@ -32,13 +32,15 @@ public class StoreUpdatePlugin: NSObject, FlutterPlugin, SKStoreProductViewContr
     let store = SKStoreProductViewController()
     store.delegate = self
     let parameters = [SKStoreProductParameterITunesItemIdentifier: NSNumber(value: trackId)]
-    store.loadProduct(withParameters: parameters) { [weak self] loaded, _ in
+    // Captures self strongly: the closure is short-lived, and `result` must be
+    // called on every path.
+    store.loadProduct(withParameters: parameters) { loaded, _ in
       DispatchQueue.main.async {
         if loaded {
           top.present(store, animated: true)
           result(true)
         } else {
-          self?.openLink(url, result: result)
+          self.openLink(url, result: result)
         }
       }
     }

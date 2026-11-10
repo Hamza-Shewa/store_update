@@ -109,18 +109,24 @@ class StoreUpdatePlugin :
 
     /** Each flow needs a fresh AppUpdateInfo: one can start only one flow. */
     private fun start(manager: AppUpdateManager, type: Int, result: MethodChannel.Result) {
-        val activity = activity ?: return result.success("failed")
+        if (activity == null) return result.success("failed")
         manager.appUpdateInfo
             .addOnSuccessListener { info ->
+                // The current activity: it may have been recreated (e.g. rotated) meanwhile.
+                val activity = activity
                 val resuming =
                     info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
-                if (!resuming && !info.isUpdateTypeAllowed(type)) {
+                if (activity == null || (!resuming && !info.isUpdateTypeAllowed(type))) {
                     result.success("failed")
                     return@addOnSuccessListener
                 }
-                manager.startUpdateFlow(info, activity, AppUpdateOptions.newBuilder(type).build())
-                    .addOnSuccessListener { code -> result.success(PlayMapping.flowResultName(code)) }
-                    .addOnFailureListener { result.success("failed") }
+                try {
+                    manager.startUpdateFlow(info, activity, AppUpdateOptions.newBuilder(type).build())
+                        .addOnSuccessListener { code -> result.success(PlayMapping.flowResultName(code)) }
+                        .addOnFailureListener { result.success("failed") }
+                } catch (_: Exception) {
+                    result.success("failed")
+                }
             }
             .addOnFailureListener { result.success("failed") }
     }
