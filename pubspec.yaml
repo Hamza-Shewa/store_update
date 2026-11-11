@@ -1,6 +1,6 @@
 name: store_update
 description: "In-app updates for Flutter: Google Play's immediate and flexible updates with download progress, an App Store prompt on iOS, and a ready-made English and Arabic UI."
-version: 0.2.0
+version: 0.3.0
 repository: https://github.com/Hamza-Shewa/store_update
 issue_tracker: https://github.com/Hamza-Shewa/store_update/issues
 topics:
@@ -23,6 +23,12 @@ screenshots:
     path: screenshots/5_offer_arabic.png
   - description: iOS, a newer App Store version
     path: screenshots/6_app_store.png
+  - description: An update forced from your backend, with Update now or Exit
+    path: screenshots/7_forced.png
+  - description: The forced update in Arabic, laid out right to left
+    path: screenshots/8_forced_arabic.png
+  - description: A forced-update prompt of your own design
+    path: screenshots/9_forced_custom.png
 
 environment:
   sdk: ">=3.11.0 <4.0.0"

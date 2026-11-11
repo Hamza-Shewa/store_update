@@ -22,6 +22,9 @@ class _ExampleAppState extends State<ExampleApp> {
   Locale _locale = const Locale('en');
   PromptStyle _prompt = PromptStyle.sheet;
   DemoStore? _demo;
+
+  /// Stands in for a "must update" answer from the app's own backend.
+  bool _forceUpdate = false;
   late StoreUpdateController _updates = StoreUpdateController();
 
   void _simulate(DemoScenario? scenario) {
@@ -82,6 +85,7 @@ class _ExampleAppState extends State<ExampleApp> {
         appName: 'Example',
         offerBuilder: _prompt.builder,
         offerPresenter: _prompt.presenter,
+        forceUpdate: _forceUpdate,
         child: child!,
       ),
       home: _Home(
@@ -91,6 +95,7 @@ class _ExampleAppState extends State<ExampleApp> {
         onPrompt: _setPrompt,
         arabic: _locale.languageCode == 'ar',
         onArabic: (ar) => setState(() => _locale = Locale(ar ? 'ar' : 'en')),
+        onForceUpdate: () => setState(() => _forceUpdate = true),
       ),
     );
   }
@@ -104,6 +109,7 @@ class _Home extends StatelessWidget {
     required this.onPrompt,
     required this.arabic,
     required this.onArabic,
+    required this.onForceUpdate,
   });
 
   final DemoScenario? simulating;
@@ -112,6 +118,7 @@ class _Home extends StatelessWidget {
   final ValueChanged<PromptStyle> onPrompt;
   final bool arabic;
   final ValueChanged<bool> onArabic;
+  final VoidCallback onForceUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +130,15 @@ class _Home extends StatelessWidget {
             title: const Text('Arabic (right to left)'),
             value: arabic,
             onChanged: onArabic,
+          ),
+          ListTile(
+            title: const Text('Force an update (backend flag)'),
+            subtitle: const Text(
+              'As if your backend said this version must update. Closing the '
+              'update closes the app.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onForceUpdate,
           ),
           const Divider(),
           const ListTile(title: Text('Store')),

@@ -19,6 +19,10 @@ class StoreUpdateLabels {
     required this.requiredFailed,
     required this.updateNow,
     required this.openStore,
+    required this.forcedTitle,
+    required this.forcedBody,
+    required this.forcedFailed,
+    required this.exit,
     required this.storeOfferTitle,
     required this.storeOfferBody,
   });
@@ -47,6 +51,13 @@ class StoreUpdateLabels {
         'update from Google Play.',
     updateNow: 'Update now',
     openStore: 'Open Google Play',
+    forcedTitle: 'Update $appName to continue',
+    forcedBody:
+        'This version of $appName is no longer supported. Update to keep '
+        'using it.',
+    forcedFailed:
+        "The update couldn't open. Check your connection and try again.",
+    exit: 'Exit',
     storeOfferTitle: (version) => '$appName $version is available',
     storeOfferBody:
         'Update from the App Store to get the latest fixes and improvements.',
@@ -75,6 +86,11 @@ class StoreUpdateLabels {
           'تعذّر بدء التحديث. تحقّق من اتصالك وحاول مجدداً، أو حدّث التطبيق من Google Play.',
       updateNow: 'حدّث الآن',
       openStore: 'افتح Google Play',
+      forcedTitle: 'حدّث $app للمتابعة',
+      forcedBody:
+          'لم يعد هذا الإصدار من $app مدعوماً. حدّثه لتستمر في استخدامه.',
+      forcedFailed: 'تعذّر فتح التحديث. تحقّق من اتصالك وحاول مجدداً.',
+      exit: 'خروج',
       storeOfferTitle: (version) => 'الإصدار ${_isolate(version)} من $app متاح',
       storeOfferBody:
           'حدّث التطبيق من App Store لتحصل على أحدث الإصلاحات والتحسينات.',
@@ -131,6 +147,19 @@ class StoreUpdateLabels {
   /// The required page's button that opens the store.
   final String openStore;
 
+  /// Title of the prompt of an update the app forced.
+  final String forcedTitle;
+
+  /// Why the forced update is needed.
+  final String forcedBody;
+
+  /// Shown on the forced prompt when the update could not start or open.
+  final String forcedFailed;
+
+  /// The forced prompt's button that declines the update (by default the
+  /// app closes).
+  final String exit;
+
   /// iOS: title naming the App Store [version].
   final String Function(String version) storeOfferTitle;
 
@@ -152,6 +181,10 @@ class StoreUpdateLabels {
     String? requiredFailed,
     String? updateNow,
     String? openStore,
+    String? forcedTitle,
+    String? forcedBody,
+    String? forcedFailed,
+    String? exit,
     String Function(String version)? storeOfferTitle,
     String? storeOfferBody,
   }) => StoreUpdateLabels(
@@ -169,6 +202,10 @@ class StoreUpdateLabels {
     requiredFailed: requiredFailed ?? this.requiredFailed,
     updateNow: updateNow ?? this.updateNow,
     openStore: openStore ?? this.openStore,
+    forcedTitle: forcedTitle ?? this.forcedTitle,
+    forcedBody: forcedBody ?? this.forcedBody,
+    forcedFailed: forcedFailed ?? this.forcedFailed,
+    exit: exit ?? this.exit,
     storeOfferTitle: storeOfferTitle ?? this.storeOfferTitle,
     storeOfferBody: storeOfferBody ?? this.storeOfferBody,
   );

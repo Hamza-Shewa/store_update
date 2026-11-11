@@ -11,6 +11,9 @@ update without leaving the app and watch the download happen.
 - **Ready-made UI** in English and Arabic (right to left), styled from your
   `Theme`, with 48 dp touch targets. You can change the text, show the offer
   as a sheet or a dialog, adjust the built-in offer, or replace any part.
+- **Force an update from your backend.** Pass a flag and the app waits behind
+  **Update now** / **Exit** until the user updates. The prompt can be
+  restyled or replaced entirely.
 - **Never blocks by accident.** A failed check, no network, or a build not
   installed from the store shows nothing.
 
@@ -25,12 +28,18 @@ update without leaving the app and watch the download happen.
     <td><img width="200" alt="The offer in Arabic, right to left" src="https://raw.githubusercontent.com/Hamza-Shewa/store_update/main/screenshots/5_offer_arabic.png"></td>
     <td><img width="200" alt="iOS: a newer App Store version" src="https://raw.githubusercontent.com/Hamza-Shewa/store_update/main/screenshots/6_app_store.png"></td>
   </tr>
+  <tr>
+    <td><img width="200" alt="An update forced from your backend: Update now or Exit" src="https://raw.githubusercontent.com/Hamza-Shewa/store_update/main/screenshots/7_forced.png"></td>
+    <td><img width="200" alt="The forced update in Arabic, right to left" src="https://raw.githubusercontent.com/Hamza-Shewa/store_update/main/screenshots/8_forced_arabic.png"></td>
+    <td><img width="200" alt="A forced-update prompt of your own design" src="https://raw.githubusercontent.com/Hamza-Shewa/store_update/main/screenshots/9_forced_custom.png"></td>
+  </tr>
 </table>
 
 | | Android | iOS |
 |---|---|---|
 | Finds a newer version | Google Play In-App Updates (on the device, through the Play Store app) | Apple's public lookup, at most once a day |
 | Required update | Play's full-screen update, then a page that waits | – |
+| Forced from your backend | Play's full-screen update, or **Update now** / **Exit** | **Update now** (App Store page) / **Exit** |
 | Optional update | Background download with progress, then restart | Opens the App Store page inside the app |
 | Permissions | None | None |
 
@@ -38,7 +47,7 @@ update without leaving the app and watch the download happen.
 
 ```yaml
 dependencies:
-  store_update: ^0.2.0
+  store_update: ^0.3.0
 ```
 
 There is no native setup. Android needs a minSdk of 24 and iOS needs 15. The
@@ -63,7 +72,7 @@ MaterialApp(
   navigatorKey: navigatorKey,
   builder: (context, child) => StoreUpdateGate(
     controller: updates,
-    navigatorKey: navigatorKey,
+    navigatorKey: navigatorKey, // needed for the offer prompt
     enabled: signedIn, // nothing is checked or shown while false
     appName: 'My App',
     child: child!,
@@ -101,6 +110,113 @@ StoreUpdateController(
 
 Play's "staleness days" never force an update. A phone that was offline for
 weeks isn't locked out.
+
+### Forcing an update from your backend
+
+When your own backend decides a version may no longer run (a changed API, a
+security fix), pass its answer to the gate. Check on launch, then set
+`forceUpdate`:
+
+```dart
+MaterialApp(
+  navigatorKey: navigatorKey,
+  builder: (context, child) => StoreUpdateGate(
+    controller: updates,
+    navigatorKey: navigatorKey,
+    appName: 'My App',
+    forceUpdate: mustUpdate, // from your backend, e.g. a minimum version
+    child: child!,
+  ),
+);
+```
+
+Or call `updates.forceUpdate()` yourself once the answer arrives. From then
+until the app restarts, a prompt over the whole app offers two buttons,
+**Update now** and **Exit**:
+
+| Store | What the user sees |
+|---|---|
+| Google Play has the update for this install | Play's full-screen update starts at once. Closing it counts as **Exit**. |
+| A background download is already running | The prompt waits for it, then installs it. |
+| Play's update failed, or Play doesn't know the update yet | The prompt. **Update now** runs Play's update, or opens the Play Store page. |
+| App Store | The prompt. **Update now** opens the App Store page. |
+
+No navigation removes or covers the prompt, and a tap outside it doesn't close
+it. It takes the keyboard focus, so a hardware keyboard, D-pad or switch can't
+reach the app beneath. It shows even while `enabled` is false and even without
+`navigatorKey`. Setting `forceUpdate` back to false doesn't undo it, and a new
+controller given to the gate takes the forced update over.
+
+Some things to know:
+
+- **Put the gate in `MaterialApp.builder`** and keep **one controller for the
+  app's lifetime**. In the builder the prompt covers everything, including
+  toasts and banners an SDK adds later. Around a single screen, the prompt
+  sits on the navigator's overlay. It survives that screen being replaced,
+  and shows again if the app rebuilds `MaterialApp`, as long as a gate with
+  the same controller is in the new tree. Overlay entries added after it,
+  such as some toast packages, can appear above it.
+- **The system back button** still works as it always does under the
+  prompt, because Flutter handles it before any package can. It may close
+  screens hidden beneath the prompt, or send the app to the background,
+  without running `onUpdateCancel`. The prompt is still there when the user
+  comes back.
+- A controller disposed while forced leaves the prompt up and its buttons
+  working, but the prompt no longer shows progress or errors.
+
+**Exit** closes the app by default: `exit(0)`, after finishing the activity on
+Android. Apple discourages apps that quit themselves, so App Review may
+question it on iOS, and in an app that embeds Flutter, `exit(0)` also ends the
+host app. Give the controller your own `onUpdateCancel` to do something else;
+`StoreUpdateController.exitApp` is there if you still want to close the app
+afterwards:
+
+```dart
+final updates = StoreUpdateController(
+  onUpdateCancel: () async {
+    await analytics.log('force_update_declined');
+    await StoreUpdateController.exitApp();
+  },
+);
+```
+
+#### Your own forced prompt
+
+Every part of the prompt can change. `forcedPromptBuilder` gets a
+`ForcedUpdatePrompt`: the `labels`, `onUpdate`, `onUpdateCancel`, and `busy`,
+`failed` and `progress` to show what is happening. Wire `onUpdateCancel` to
+your own button, or leave it out and run your own logic instead:
+
+```dart
+forcedPromptBuilder: (context, prompt) => MyBlockingPage(
+  busy: prompt.busy,               // Play is being asked, or a download runs
+  failed: prompt.failed,           // the update couldn't start or open
+  onUpdate: prompt.onUpdate,
+  onExit: prompt.onUpdateCancel,   // or: () => signOutAndClose()
+),
+```
+
+Or keep the built-in dialog and change its icon, colours, shape and width,
+add content under the text, or restyle its buttons:
+
+```dart
+forcedPromptBuilder: (context, prompt) => ForcedUpdateDialog(
+  prompt: prompt,
+  icon: const Icon(Icons.lock_clock, size: 40),
+  content: const Text('This version has a security issue.'),
+  exitButtonStyle: TextButton.styleFrom(foregroundColor: Colors.red),
+  backgroundColor: Colors.white,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  maxWidth: 420,
+),
+forcedBarrierColor: Colors.black87, // the gate's colour over the app
+```
+
+Your prompt is shown over a barrier inside its own focus scope and overlay,
+so tooltips, text fields and menus work in it.
+
+The text is `forcedTitle`, `forcedBody`, `forcedFailed`, `updateNow` and
+`exit` in `StoreUpdateLabels` (see below).
 
 ### Your own text
 
@@ -161,12 +277,14 @@ offerBuilder: (context, offer) => MyUpdateCard(
 
 ### Your own widgets
 
-Replace the download bar or the required-update page with
-`progressBarBuilder` or `requiredPageBuilder`. You can also skip the gate
+Replace the download bar, the required-update page or the forced-update
+dialog with `progressBarBuilder`, `requiredPageBuilder` or
+`forcedPromptBuilder`. You can also skip the gate
 entirely: listen to the controller (`phase`, `progress`, `storeVersion`) and
-call `accept`, `dismiss`, `restartToInstall`, `retryImmediate` and `openStore`
-from your own UI. `UpdateOfferSheet`, `UpdateProgressBar` and
-`RequiredUpdatePage` are public if you want to reuse them.
+call `accept`, `dismiss`, `restartToInstall`, `retryImmediate`, `openStore`,
+`startForcedUpdate` and `cancelForcedUpdate` from your own UI. `UpdateOfferSheet`,
+`UpdateProgressBar`, `RequiredUpdatePage` and `ForcedUpdateDialog` are public
+if you want to reuse them.
 
 ## Marking a release as required (Google Play)
 

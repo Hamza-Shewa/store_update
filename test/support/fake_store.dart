@@ -13,6 +13,19 @@ class FakeStore extends StoreUpdatePlatform {
   /// Never answers [check] (for the timeout path).
   bool hang = false;
 
+  /// When set, [check] answers only when this completes.
+  Completer<StoreCheck?>? checkCompleter;
+
+  /// When set, Play's full-screen update stays open until this completes.
+  Completer<UpdateFlowResult>? immediateCompleter;
+
+  /// When set, Play's background-download consent stays open until this
+  /// completes.
+  Completer<UpdateFlowResult>? flexibleCompleter;
+
+  /// Thrown by [completeFlexible] when set.
+  Object? completeError;
+
   @override
   bool checkUsesNetwork;
 
@@ -34,6 +47,8 @@ class FakeStore extends StoreUpdatePlatform {
     checks++;
     lastCountry = appStoreCountry;
     if (hang) return Completer<StoreCheck?>().future;
+    final pending = checkCompleter;
+    if (pending != null) return pending.future;
     if (checkError != null) throw checkError!;
     return result;
   }
@@ -41,20 +56,23 @@ class FakeStore extends StoreUpdatePlatform {
   @override
   Future<UpdateFlowResult> startImmediate() async {
     immediateStarts++;
-    return immediateResult;
+    return immediateCompleter?.future ?? immediateResult;
   }
 
   @override
   Future<UpdateFlowResult> startFlexible() async {
     flexibleStarts++;
-    return flexibleResult;
+    return flexibleCompleter?.future ?? flexibleResult;
   }
 
   @override
   Stream<DownloadProgress> get progress => progressEvents.stream;
 
   @override
-  Future<void> completeFlexible() async => completes++;
+  Future<void> completeFlexible() async {
+    completes++;
+    if (completeError != null) throw completeError!;
+  }
 
   @override
   Future<bool> openStorePage() async {

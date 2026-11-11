@@ -11,7 +11,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   store_update:
-    # In an app, use: store_update: ^0.2.0
+    # In an app, use: store_update: ^0.3.0
     path: ../
 
 dev_dependencies:
