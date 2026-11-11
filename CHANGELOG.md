@@ -1,3 +1,15 @@
+## 0.3.0
+
+* Force an update from your own backend: `StoreUpdateGate(forceUpdate: true)` or `StoreUpdateController.forceUpdate()`. A prompt over the whole app offers **Update now** and **Exit** until the app restarts. On Google Play, Play's full-screen update starts at once (closing it counts as **Exit**), a running background download is waited for and installed, and **Update now** falls back to the store page.
+* The prompt survives navigation, the wrapped screen being replaced and `MaterialApp` being rebuilt. It holds the keyboard focus, shows even while the gate is disabled and without `navigatorKey`, and carries over to a new controller. The system back button still works beneath it (see the README).
+* **Exit** runs the controller's `onUpdateCancel`, by default `StoreUpdateController.exitApp` (`exit(0)`, after finishing the activity on Android). Give your own to do something else.
+* Every part of the forced prompt can change: `forcedPromptBuilder` gets a `ForcedUpdatePrompt` model (`labels`, `onUpdate`, `onUpdateCancel`, `busy`, `failed`, `progress`), the built-in `ForcedUpdateDialog` takes an `icon`, extra `content`, button styles, `backgroundColor`, `shape`, `insetPadding` and `maxWidth`, and `forcedBarrierColor` sets the colour over the app. An `onUpdateCancel` that throws is reported, not thrown.
+* New screenshots: the forced prompt in English and Arabic, and one of your own design.
+* **Breaking:** `StoreUpdateLabels` has new required texts: `forcedTitle`, `forcedBody`, `forcedFailed` and `exit`. `StoreUpdateLabels.en`, `.ar` and `.of` fill them in; only code that calls the constructor directly needs to pass them.
+* **Breaking:** `UpdatePhase` has a new value, `forced`. A `switch` over every phase needs a case for it.
+* Once forced, `retryImmediate()` (the required page's **Update now**) follows the forced rules, so closing Play's update screen runs `onUpdateCancel`.
+* The example app has an item that simulates the backend flag.
+
 ## 0.2.0
 
 * **Breaking:** `offerSheetBuilder` is now `offerBuilder`, and it receives an `UpdateOffer` with `onUpdate` and `onLater` callbacks instead of popping `true` or `false`. `onLater` is null when the update is required. `UpdateOfferSheet` takes the `offer` instead of `labels`, `storeVersion` and `required`.

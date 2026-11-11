@@ -55,6 +55,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('the backend flag forces the update over the app', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ExampleApp());
+    await tapTile(tester, 'Force an update (backend flag)');
+    expect(find.byKey(StoreUpdateGate.forcedKey), findsOneWidget);
+    expect(find.text('Update Example to continue'), findsOneWidget);
+    expect(find.text('Exit'), findsOneWidget);
+    // "Exit" really closes the app, so it is not tapped here.
+  });
+
   group('offer prompt styles', () {
     testWidgets('the dialog style shows the built-in prompt in a dialog', (
       tester,

@@ -33,6 +33,22 @@ void main() {
     );
   });
 
+  test('the forced prompt has its own text in both languages', () {
+    final en = StoreUpdateLabels.en(appName: 'Acme');
+    expect(en.forcedTitle, 'Update Acme to continue');
+    expect(en.exit, 'Exit');
+    expect(en.forcedFailed, contains("couldn't open"));
+    expect(en.forcedFailed, isNot(contains('Google Play')));
+
+    final ar = StoreUpdateLabels.ar(appName: 'Acme');
+    expect(ar.exit, 'خروج');
+    expect(
+      ar.forcedTitle,
+      contains(String.fromCharCodes([_lri, ...'Acme'.codeUnits, _pdi])),
+    );
+    expect(en.copyWith(exit: 'Quit').exit, 'Quit');
+  });
+
   test('Arabic keeps an Arabic app name as it is', () {
     final ar = StoreUpdateLabels.ar(appName: 'هوية');
     expect(ar.offerTitle, 'إصدار جديد من هوية جاهز');

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'forced_update_prompt.dart';
 import 'store_update_labels.dart';
 import 'update_offer.dart';
 
@@ -304,6 +305,165 @@ class RequiredUpdatePage extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The built-in prompt of an update the app forced
+/// (`StoreUpdateController.forceUpdate`): "Update now" calls
+/// [ForcedUpdatePrompt.onUpdate] and "Exit" calls
+/// [ForcedUpdatePrompt.onUpdateCancel].
+///
+/// Return it from `StoreUpdateGate.forcedPromptBuilder` to keep the built-in
+/// prompt with your own [icon], extra [content] or button styles.
+class ForcedUpdateDialog extends StatelessWidget {
+  const ForcedUpdateDialog({
+    super.key,
+    required this.prompt,
+    this.icon,
+    this.content,
+    this.updateButtonStyle,
+    this.exitButtonStyle,
+    this.backgroundColor,
+    this.shape,
+    this.insetPadding,
+    this.maxWidth = 480,
+  });
+
+  final ForcedUpdatePrompt prompt;
+
+  /// Shown above the title, in place of the built-in [UpdateBadge].
+  final Widget? icon;
+
+  /// Shown under the text, above the buttons (for example release notes).
+  final Widget? content;
+
+  /// Merged over the built-in style of the "Update now" button.
+  final ButtonStyle? updateButtonStyle;
+
+  /// Merged over the built-in style of the "Exit" button.
+  final ButtonStyle? exitButtonStyle;
+
+  /// The dialog's colour; the dialog theme's when null.
+  final Color? backgroundColor;
+
+  /// The dialog's shape; the dialog theme's when null.
+  final ShapeBorder? shape;
+
+  /// Space between the dialog and the screen edges; [Dialog]'s when null.
+  final EdgeInsets? insetPadding;
+
+  /// The widest the dialog grows.
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final labels = prompt.labels;
+    final extra = content;
+    final progress = prompt.progress;
+    return Dialog(
+      backgroundColor: backgroundColor,
+      shape: shape,
+      insetPadding: insetPadding,
+      // Named for screen readers as it appears, like a dialog route.
+      child: Semantics(
+        scopesRoute: true,
+        namesRoute: true,
+        explicitChildNodes: true,
+        label: labels.forcedTitle,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          // Scrolls on short screens (a phone in landscape, large text).
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(_Space.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: icon ?? const UpdateBadge(size: 56),
+                ),
+                const SizedBox(height: _Space.md),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    labels.forcedTitle,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+                const SizedBox(height: _Space.xs),
+                Text(
+                  labels.forcedBody,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                if (extra != null) ...[
+                  const SizedBox(height: _Space.md),
+                  extra,
+                ],
+                if (prompt.failed) ...[
+                  const SizedBox(height: _Space.md),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      labels.forcedFailed,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.error,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: _Space.xl),
+                FilledButton(
+                  // Keyboard, D-pad and switch users start on "Update now".
+                  autofocus: true,
+                  style: _over(
+                    updateButtonStyle,
+                    FilledButton.styleFrom(minimumSize: _minButton),
+                  ),
+                  onPressed: prompt.busy ? null : prompt.onUpdate,
+                  child: prompt.busy
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                value: progress,
+                              ),
+                            ),
+                            const SizedBox(width: _Space.sm),
+                            Flexible(
+                              child: Text(
+                                progress != null
+                                    ? '${labels.downloading} '
+                                          '${labels.percent((progress * 100).floor().clamp(0, 100))}'
+                                    : labels.updateNow,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(labels.updateNow),
+                ),
+                const SizedBox(height: _Space.xs),
+                TextButton(
+                  style: _over(
+                    exitButtonStyle,
+                    TextButton.styleFrom(minimumSize: _minButton),
+                  ),
+                  onPressed: prompt.onUpdateCancel,
+                  child: Text(labels.exit),
+                ),
+              ],
             ),
           ),
         ),
