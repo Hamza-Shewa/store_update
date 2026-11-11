@@ -20,4 +20,5 @@ export 'src/policy.dart';
 export 'src/store_update_controller.dart';
 export 'src/ui/store_update_gate.dart';
 export 'src/ui/store_update_labels.dart';
+export 'src/ui/update_offer.dart';
 export 'src/ui/update_widgets.dart';

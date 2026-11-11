@@ -117,14 +117,55 @@ StoreUpdateGate(
 
 For another language, build a `StoreUpdateLabels` yourself.
 
+### Your own offer prompt
+
+The built-in prompt is a bottom sheet. You can change it in three ways, and
+each one leaves the others as they are.
+
+Show it somewhere else with `offerPresenter`. `showUpdateOfferDialog` is
+built in, and any function that shows a route works:
+
+```dart
+StoreUpdateGate(
+  controller: updates,
+  appName: 'My App',
+  offerPresenter: showUpdateOfferDialog, // default: showUpdateOfferSheet
+  child: const HomeScreen(),
+);
+```
+
+Keep the built-in prompt but change its icon, add content under the text, or
+restyle its buttons:
+
+```dart
+offerBuilder: (context, offer) => UpdateOfferSheet(
+  offer: offer,
+  icon: const Icon(Icons.rocket_launch, size: 40),
+  content: const Text('New: faster transfers and a dark theme.'),
+  updateButtonStyle: FilledButton.styleFrom(backgroundColor: Colors.teal),
+),
+```
+
+Or build your own. Call `offer.onUpdate` and `offer.onLater` from its
+buttons. `onLater` is null when the update is required, and back can't close
+a required prompt. `offer.storeVersion` is the App Store version on iOS:
+
+```dart
+offerBuilder: (context, offer) => MyUpdateCard(
+  version: offer.storeVersion,
+  onUpdate: offer.onUpdate,
+  onLater: offer.onLater, // hide "Later" when null
+),
+```
+
 ### Your own widgets
 
-Replace any part with `offerSheetBuilder`, `progressBarBuilder` or
-`requiredPageBuilder`. You can also skip the gate entirely: listen to the
-controller (`phase`, `progress`, `storeVersion`) and call `accept`, `dismiss`,
-`restartToInstall`, `retryImmediate` and `openStore` from your own UI.
-`UpdateOfferSheet`, `UpdateProgressBar` and `RequiredUpdatePage` are public
-if you want to reuse them.
+Replace the download bar or the required-update page with
+`progressBarBuilder` or `requiredPageBuilder`. You can also skip the gate
+entirely: listen to the controller (`phase`, `progress`, `storeVersion`) and
+call `accept`, `dismiss`, `restartToInstall`, `retryImmediate` and `openStore`
+from your own UI. `UpdateOfferSheet`, `UpdateProgressBar` and
+`RequiredUpdatePage` are public if you want to reuse them.
 
 ## Marking a release as required (Google Play)
 

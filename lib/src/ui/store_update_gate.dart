@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../store_update_controller.dart';
 import 'store_update_labels.dart';
+import 'update_offer.dart';
 import 'update_widgets.dart';
 
-/// Builds a custom offer sheet. It must pop `true` for "Update" and `false`
-/// for "Later". [storeVersion] is set for an iOS App Store offer; a
-/// [required] offer must not offer "Later".
-typedef OfferSheetBuilder =
-    Widget Function(
-      BuildContext context,
-      StoreUpdateLabels labels, {
-      String? storeVersion,
-      required bool required,
-    });
+/// Builds a custom offer prompt. Call [UpdateOffer.onUpdate] and
+/// [UpdateOffer.onLater] from its buttons; a required offer has no
+/// `onLater`. Return [UpdateOfferSheet] to keep the built-in prompt with
+/// changes.
+typedef OfferBuilder = Widget Function(BuildContext context, UpdateOffer offer);
 
 /// Builds a custom download bar. Call `controller.restartToInstall` from its
 /// restart button once [StoreUpdateController.phase] is ready to install.
@@ -33,9 +29,10 @@ typedef RequiredPageBuilder =
       StoreUpdateLabels labels,
     );
 
-/// Wraps the app with the update UI: the offer sheet, a download bar across
-/// the top while a background update downloads, and a page (a route that
-/// back cannot leave) that waits when a required update was not installed.
+/// Wraps the app with the update UI: the offer prompt (a bottom sheet unless
+/// [offerPresenter] says otherwise), a download bar across the top while a
+/// background update downloads, and a page (a route that back cannot leave)
+/// that waits when a required update was not installed.
 ///
 /// It starts [controller]'s checks once built with [enabled] true, so turn it
 /// on when the app is ready for them (for example after onboarding).
@@ -65,7 +62,8 @@ class StoreUpdateGate extends StatefulWidget {
     required this.child,
     this.appName,
     this.labels,
-    this.offerSheetBuilder,
+    this.offerBuilder,
+    this.offerPresenter,
     this.progressBarBuilder,
     this.requiredPageBuilder,
     this.navigatorKey,
@@ -84,12 +82,18 @@ class StoreUpdateGate extends StatefulWidget {
   /// The text to show; the built-in English or Arabic text when null.
   final StoreUpdateLabels Function(BuildContext context)? labels;
 
-  final OfferSheetBuilder? offerSheetBuilder;
+  /// Builds the offer prompt; [UpdateOfferSheet] when null.
+  final OfferBuilder? offerBuilder;
+
+  /// Shows the offer prompt; [showUpdateOfferSheet] (a bottom sheet) when
+  /// null. [showUpdateOfferDialog] shows a dialog instead.
+  final OfferPresenter? offerPresenter;
+
   final ProgressBarBuilder? progressBarBuilder;
   final RequiredPageBuilder? requiredPageBuilder;
 
-  /// The app's navigator, for showing the offer sheet when the gate sits
-  /// above it (in `MaterialApp.builder`). When null the sheet uses the
+  /// The app's navigator, for showing the offer prompt when the gate sits
+  /// above it (in `MaterialApp.builder`). When null the prompt uses the
   /// nearest [Navigator] above the gate.
   final GlobalKey<NavigatorState>? navigatorKey;
 
@@ -108,7 +112,7 @@ class StoreUpdateGate extends StatefulWidget {
 }
 
 class _StoreUpdateGateState extends State<StoreUpdateGate> {
-  bool _sheetOpen = false;
+  bool _offerOpen = false;
 
   /// The required-update page, pushed on the root navigator so it covers
   /// every route and back cannot leave it.
@@ -157,7 +161,7 @@ class _StoreUpdateGateState extends State<StoreUpdateGate> {
     if (!mounted) return;
     final phase = widget.enabled ? widget.controller.phase : UpdatePhase.idle;
     _syncRequiredRoute(phase == UpdatePhase.required);
-    if (_sheetOpen) return;
+    if (_offerOpen) return;
     if (phase == UpdatePhase.offerFlexible || phase == UpdatePhase.offerStore) {
       _showOffer();
     }
@@ -206,36 +210,44 @@ class _StoreUpdateGateState extends State<StoreUpdateGate> {
   Future<void> _showOffer() async {
     final navigatorContext = _navigator?.context;
     if (navigatorContext == null) return;
-    _sheetOpen = true;
+    _offerOpen = true;
     final c = widget.controller;
     final required = c.phase == UpdatePhase.offerFlexible && c.offerRequired;
     final storeVersion = c.phase == UpdatePhase.offerStore
         ? c.storeVersion
         : null;
-    final accepted = await showModalBottomSheet<bool>(
-      context: navigatorContext,
-      isDismissible: !required,
-      enableDrag: !required,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (context) {
-        final labels = _labels(context);
-        final custom = widget.offerSheetBuilder;
-        return custom != null
-            ? custom(
-                context,
-                labels,
-                storeVersion: storeVersion,
-                required: required,
-              )
-            : UpdateOfferSheet(
-                labels: labels,
-                storeVersion: storeVersion,
-                required: required,
-              );
-      },
-    );
-    _sheetOpen = false;
+    final present = widget.offerPresenter ?? showUpdateOfferSheet;
+    bool? accepted;
+    try {
+      accepted = await present(navigatorContext, (context) {
+        final offer = UpdateOffer(
+          labels: _labels(context),
+          storeVersion: storeVersion,
+          onUpdate: () => Navigator.pop(context, true),
+          onLater: required ? null : () => Navigator.pop(context, false),
+        );
+        // Back can't close a required offer, whatever the prompt.
+        return PopScope(
+          canPop: !required,
+          child:
+              widget.offerBuilder?.call(context, offer) ??
+              UpdateOfferSheet(offer: offer),
+        );
+      }, required: required);
+    } catch (error, stack) {
+      // Treated as "Later", so the controller is not left on an offer that
+      // nothing shows; the next check offers it again as usual.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'store_update',
+          context: ErrorDescription('while showing the update offer'),
+        ),
+      );
+    } finally {
+      _offerOpen = false;
+    }
     if (!mounted) return;
     if (accepted == true) {
       await c.accept();

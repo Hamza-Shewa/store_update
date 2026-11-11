@@ -36,7 +36,8 @@ void main() {
     FakeStore fake, {
     String lang = 'en',
     StoreUpdateLabels Function(BuildContext)? labels,
-    OfferSheetBuilder? offerSheetBuilder,
+    OfferBuilder? offerBuilder,
+    OfferPresenter? offerPresenter,
     ProgressBarBuilder? progressBarBuilder,
     RequiredPageBuilder? requiredPageBuilder,
     Size screen = const Size(1080, 2400),
@@ -62,7 +63,8 @@ void main() {
           controller: controller,
           appName: 'Hawiya',
           labels: labels,
-          offerSheetBuilder: offerSheetBuilder,
+          offerBuilder: offerBuilder,
+          offerPresenter: offerPresenter,
           progressBarBuilder: progressBarBuilder,
           requiredPageBuilder: requiredPageBuilder,
           child: const _Home(),
@@ -300,18 +302,17 @@ void main() {
     expect(fake.flexibleStarts, 1);
   });
 
-  testWidgets('custom widgets replace the sheet, the bar and the page', (
+  testWidgets('custom widgets replace the offer, the bar and the page', (
     tester,
   ) async {
     final fake = FakeStore(result: playUpdate());
     final controller = await show(
       tester,
       fake,
-      offerSheetBuilder: (context, labels, {storeVersion, required required}) =>
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('my offer, required: $required'),
-          ),
+      offerBuilder: (context, offer) => TextButton(
+        onPressed: offer.onUpdate,
+        child: Text('my offer, required: ${offer.required}'),
+      ),
       progressBarBuilder: (context, c, labels) =>
           Text('my bar ${c.phase.name}'),
       requiredPageBuilder: (context, c, labels) =>

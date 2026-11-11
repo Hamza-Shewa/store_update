@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'store_update_labels.dart';
+import 'update_offer.dart';
 
 /// Spacing and sizes of the built-in UI (a 4-point grid).
 abstract final class _Space {
@@ -18,37 +19,59 @@ abstract final class _Space {
 
 const _minButton = Size(_Space.target, _Space.target);
 
-/// The offer of a newer version: an Android background download, or (with
-/// [storeVersion]) an iOS App Store version. Pops `true` for "Update" and
-/// `false` for "Later". A [required] offer has no "Later" and back does not
-/// close it.
+/// [style]'s set fields over [base].
+ButtonStyle _over(ButtonStyle? style, ButtonStyle base) =>
+    style?.merge(base) ?? base;
+
+/// The built-in offer prompt: an Android background download, or (with
+/// [UpdateOffer.storeVersion]) an iOS App Store version. "Update" calls
+/// [UpdateOffer.onUpdate] and "Later" calls [UpdateOffer.onLater]. A required
+/// offer has no "Later" and back does not close it.
+///
+/// Return it from `StoreUpdateGate.offerBuilder` to keep the built-in prompt
+/// with your own [icon], extra [content] or button styles.
 class UpdateOfferSheet extends StatelessWidget {
   const UpdateOfferSheet({
     super.key,
-    required this.labels,
-    this.storeVersion,
-    this.required = false,
+    required this.offer,
+    this.icon,
+    this.content,
+    this.updateButtonStyle,
+    this.laterButtonStyle,
   });
 
-  final StoreUpdateLabels labels;
-  final String? storeVersion;
-  final bool required;
+  final UpdateOffer offer;
+
+  /// Shown above the title, in place of the built-in [UpdateBadge].
+  final Widget? icon;
+
+  /// Shown under the text, above the buttons (for example release notes).
+  final Widget? content;
+
+  /// Merged over the built-in style of the "Update" button.
+  final ButtonStyle? updateButtonStyle;
+
+  /// Merged over the built-in style of the "Later" button.
+  final ButtonStyle? laterButtonStyle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final version = storeVersion;
+    final labels = offer.labels;
+    final version = offer.storeVersion;
+    final onLater = offer.onLater;
     final title = version != null
         ? labels.storeOfferTitle(version)
         : labels.offerTitle;
     final body = version != null
         ? labels.storeOfferBody
-        : required
+        : onLater == null
         ? labels.offerRequiredBody
         : labels.offerBody;
+    final extra = content;
     return PopScope(
-      canPop: !required,
+      canPop: onLater != null,
       // Scrolls on short screens (a phone in landscape, large text).
       child: SingleChildScrollView(
         padding: const EdgeInsetsDirectional.fromSTEB(
@@ -61,9 +84,9 @@ class UpdateOfferSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Align(
+            Align(
               alignment: AlignmentDirectional.centerStart,
-              child: UpdateBadge(size: 56),
+              child: icon ?? const UpdateBadge(size: 56),
             ),
             const SizedBox(height: _Space.md),
             Text(title, style: theme.textTheme.titleLarge),
@@ -74,17 +97,24 @@ class UpdateOfferSheet extends StatelessWidget {
                 color: cs.onSurfaceVariant,
               ),
             ),
+            if (extra != null) ...[const SizedBox(height: _Space.md), extra],
             const SizedBox(height: _Space.xl),
             FilledButton(
-              style: FilledButton.styleFrom(minimumSize: _minButton),
-              onPressed: () => Navigator.pop(context, true),
+              style: _over(
+                updateButtonStyle,
+                FilledButton.styleFrom(minimumSize: _minButton),
+              ),
+              onPressed: offer.onUpdate,
               child: Text(labels.update),
             ),
-            if (!required) ...[
+            if (onLater != null) ...[
               const SizedBox(height: _Space.xs),
               TextButton(
-                style: TextButton.styleFrom(minimumSize: _minButton),
-                onPressed: () => Navigator.pop(context, false),
+                style: _over(
+                  laterButtonStyle,
+                  TextButton.styleFrom(minimumSize: _minButton),
+                ),
+                onPressed: onLater,
                 child: Text(labels.later),
               ),
             ],
