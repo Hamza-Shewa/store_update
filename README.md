@@ -9,7 +9,8 @@ update without leaving the app and watch the download happen.
 - **iOS:** iOS can't update in place, so the package checks the App Store
   version and shows the App Store page over your app.
 - **Ready-made UI** in English and Arabic (right to left), styled from your
-  `Theme`, with 48 dp touch targets. You can change the text or replace any part.
+  `Theme`, with 48 dp touch targets. You can change the text, show the offer
+  as a sheet or a dialog, adjust the built-in offer, or replace any part.
 - **Never blocks by accident.** A failed check, no network, or a build not
   installed from the store shows nothing.
 
@@ -37,7 +38,7 @@ update without leaving the app and watch the download happen.
 
 ```yaml
 dependencies:
-  store_update: ^0.1.0
+  store_update: ^0.2.0
 ```
 
 There is no native setup. Android needs a minSdk of 24 and iOS needs 15. The
@@ -198,7 +199,8 @@ package correctly shows nothing.
    3. Wait for Play to show it to the tester, then open the app.
 
 To try the UI without a store, run the [example](example) and pick a
-simulated store from the list.
+simulated store from the list. It also switches between the offer prompt
+styles described in [Your own offer prompt](#your-own-offer-prompt).
 
 In tests, replace the store with a fake:
 

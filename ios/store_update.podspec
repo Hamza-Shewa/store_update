@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'store_update'
-  s.version          = '0.1.0'
+  s.version          = '0.2.0'
   s.summary          = 'In-app update prompt that opens the App Store page inside the app.'
   s.description      = <<-DESC
 Shows the app's App Store page over the app (SKStoreProductViewController) when a newer version is available.

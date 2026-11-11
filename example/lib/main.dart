@@ -3,12 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:store_update/store_update.dart';
 
 import 'demo_store.dart';
+import 'prompt_styles.dart';
 
 void main() => runApp(const ExampleApp());
 
 /// Shows the update UI for a real store check (install this app from Google
 /// Play's internal testing to see a real update), or for a simulated store
-/// picked from the menu.
+/// picked from the menu, with the offer prompt shown in one of several ways.
 class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
 
@@ -19,16 +20,35 @@ class ExampleApp extends StatefulWidget {
 class _ExampleAppState extends State<ExampleApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   Locale _locale = const Locale('en');
+  PromptStyle _prompt = PromptStyle.sheet;
   DemoStore? _demo;
   late StoreUpdateController _updates = StoreUpdateController();
 
   void _simulate(DemoScenario? scenario) {
     final old = _updates;
+    final oldDemo = _demo;
     setState(() {
       _demo = scenario == null ? null : DemoStore(scenario);
-      _updates = StoreUpdateController(platform: _demo);
+      _updates = StoreUpdateController(
+        platform: _demo,
+        // A simulated store offers again at once, so each prompt style can
+        // be tried; the real store keeps the once-a-day default.
+        policy: scenario == null
+            ? const UpdatePolicy()
+            : const UpdatePolicy(promptGap: Duration.zero),
+      );
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      old.dispose();
+      oldDemo?.dispose();
+    });
+  }
+
+  /// Shows the simulated offer again in the new [style].
+  void _setPrompt(PromptStyle style) {
+    setState(() => _prompt = style);
+    final scenario = _demo?.scenario;
+    if (scenario != null) _simulate(scenario);
   }
 
   @override
@@ -55,16 +75,20 @@ class _ExampleAppState extends State<ExampleApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       navigatorKey: _navigatorKey,
-      // Over every screen: the sheet, the download bar and the required page.
+      // Over every screen: the offer, the download bar and the required page.
       builder: (context, child) => StoreUpdateGate(
         controller: _updates,
         navigatorKey: _navigatorKey,
         appName: 'Example',
+        offerBuilder: _prompt.builder,
+        offerPresenter: _prompt.presenter,
         child: child!,
       ),
       home: _Home(
         simulating: _demo?.scenario,
         onSimulate: _simulate,
+        prompt: _prompt,
+        onPrompt: _setPrompt,
         arabic: _locale.languageCode == 'ar',
         onArabic: (ar) => setState(() => _locale = Locale(ar ? 'ar' : 'en')),
       ),
@@ -76,12 +100,16 @@ class _Home extends StatelessWidget {
   const _Home({
     required this.simulating,
     required this.onSimulate,
+    required this.prompt,
+    required this.onPrompt,
     required this.arabic,
     required this.onArabic,
   });
 
   final DemoScenario? simulating;
   final ValueChanged<DemoScenario?> onSimulate;
+  final PromptStyle prompt;
+  final ValueChanged<PromptStyle> onPrompt;
   final bool arabic;
   final ValueChanged<bool> onArabic;
 
@@ -113,6 +141,22 @@ class _Home extends StatelessWidget {
                 ),
                 for (final s in DemoScenario.values)
                   RadioListTile<DemoScenario?>(value: s, title: Text(s.title)),
+              ],
+            ),
+          ),
+          const Divider(),
+          const ListTile(title: Text('Offer prompt')),
+          RadioGroup<PromptStyle>(
+            groupValue: prompt,
+            onChanged: (style) => onPrompt(style!),
+            child: Column(
+              children: [
+                for (final p in PromptStyle.values)
+                  RadioListTile<PromptStyle>(
+                    value: p,
+                    title: Text(p.title),
+                    subtitle: Text(p.subtitle),
+                  ),
               ],
             ),
           ),
